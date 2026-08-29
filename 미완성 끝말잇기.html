@@ -9206,7 +9206,117 @@ const EMBEDDED = `가게
 끔쩍
 끔쩍끔쩍
 끔박
-끔박끔박`.split(/\s+/).filter(Boolean);      
+끔박끔박
+가습
+자습
+시습
+사습
+예습
+실습
+풍습
+악습
+인습
+구습
+폐습
+상습
+세습
+답습
+전습
+강습
+교습
+견습
+수습
+역습
+야습
+급습
+내습
+엄습
+잠습
+침습
+흡습
+방습
+제습
+보습
+조습
+투습
+다습
+과습
+저습
+습관
+습기
+습도
+습득
+습격
+습성
+습속
+습식
+습윤
+습작
+습지
+습진
+습자
+습제
+습곡
+습벽
+습유
+습례
+습업
+습용
+습독
+사이시읏
+시읏
+사태막이
+사태막이둑
+빈값
+계횩
+횩다
+자갈왓
+계모살왓
+왓슨
+칸트리뷰션
+칸다리딘
+칸디딘
+칸디시딘
+칸타리딘
+칸디다균
+칸막이벽
+놀좆
+놀낀
+낀각
+놀이객
+놀면
+놀빛
+놀이형
+칸나비놀
+칸답
+칸그레룰
+칸트주의
+칸칸
+칸막이귀틀무덤
+칸타브리아산맥
+칸막이식
+칸디다증
+칸통
+춘접
+춘청
+춘대옥촉
+춘축
+춘래불사춘
+춘향
+춘혀
+춘파형
+춘곤
+춘궁하곤
+춘면
+춘산면
+춘양면
+춘포면
+춘몽
+춘빙
+춘삼삭
+춘수모운
+몽둥이맛
+몽둥이춤`.split(/\s+/).filter(Boolean);      
       
 const BLOCK = new Set(["날뷁"]);      
       
@@ -9939,21 +10049,44 @@ $("dictFile")
     }      
   );      
       
-buildDictionary(
-  EMBEDDED
-);
+const REMOTE_ROBLOX_DICT = "https://singrum.github.io/KoreanDict/roblox";
 
-if(loadGame()){
-  renderHistory();
-  updateUI();
-  renderShop();
-  saveGame();
-  setStatus(gameOver ? "저장된 게임 종료 상태를 불러옴" : "저장된 진행상황을 불러옴");
-}else{
-  resetGame();
-  renderShop();
+async function initGame(){
+  // 먼저 기존 내장 사전으로 즉시 실행
+  buildDictionary(EMBEDDED);
+
+  if(loadGame()){
+    renderHistory();
+    updateUI();
+    renderShop();
+    saveGame();
+    setStatus(gameOver ? "저장된 게임 종료 상태를 불러옴" : "저장된 진행상황을 불러옴");
+  }else{
+    resetGame();
+    renderShop();
+  }
+
+  // 끝말 엔진이 쓰는 로블록스 한국 끝말잇기 사전 전체를 추가 로드
+  try{
+    setStatus("한끝 대형 사전 불러오는 중...");
+    const res = await fetch(REMOTE_ROBLOX_DICT, {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP " + res.status);
+
+    const text = await res.text();
+    const remoteWords = text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+
+    // 사용자가 직접 추가해 온 EMBEDDED 단어도 그대로 유지
+    buildDictionary([...EMBEDDED, ...remoteWords]);
+    setStatus(`한끝 대형 사전 로드 완료: ${dict.length.toLocaleString()}개`);
+  }catch(err){
+    setStatus(
+      `대형 사전 로드 실패 → 기존 내장 사전 ${dict.length.toLocaleString()}개로 실행 (${err.message})`,
+      true
+    );
+  }
 }
 
+initGame();
 window.addEventListener("beforeunload", saveGame);
 
 </script>      </body>      
