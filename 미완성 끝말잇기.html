@@ -13,7 +13,7 @@ h1{font-size:24px;margin:0 0 8px} .muted{color:#9ca3af;font-size:13px} .big{font
 button,.filebtn{border:0;border-radius:12px;padding:12px 15px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;cursor:pointer}      
 button.secondary,.filebtn.secondary{background:#374151} button.danger{background:#991b1b} .filebtn input{display:none}      
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center} .stats div{background:#111827;border-radius:12px;padding:10px}      
-#history{max-height:270px;overflow:auto;line-height:1.65} .you{color:#93c5fd} .ai{color:#fca5a5} .ok{color:#86efac} .bad{color:#fca5a5}      
+#history{max-height:270px;overflow:auto;line-height:1.65} .shopItem{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#111827;border-radius:12px;padding:10px;margin-top:8px} .shopItem button:disabled{opacity:.45;cursor:not-allowed} .you{color:#93c5fd} .ai{color:#fca5a5} .ok{color:#86efac} .bad{color:#fca5a5}      
 #status{min-height:24px;font-weight:700;margin-top:10px}      
 </style>      
 </head>      
@@ -40,424 +40,431 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
       <label class="filebtn">대형 사전 TXT 불러오기      
         <input id="dictFile" type="file" accept=".txt,text/plain,.json,application/json">      
       </label>      
-      <button class="secondary" id="resetBtn">게임 초기화</button>      
+      <button class="secondary" id="resetBtn">다시 시작</button>      
       <button class="danger" id="restoreBtn">내장 사전으로 복구</button>      
     </div>      
     <div class="muted" style="margin-top:8px">      
       TXT는 한 줄에 한 단어 형식. 4MB급 파일도 브라우저에서 직접 읽어서 합칩니다.      
       불러온 뒤에는 인터넷 연결이 필요 없습니다.      
     </div>      
+  </div>        <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <b>상점</b>
+      <b>🪙 <span id="coins">0</span> 코인</b>
+    </div>
+    <div class="muted" style="margin-top:6px">승리하면 20코인 · 실전 아이템/진행상황 자동 저장</div>
+    <div id="shop"></div>
   </div>        <div class="card">      
     <b>기록</b>      
     <div id="history" class="muted">아직 낸 단어가 없음.</div>      
   </div>      
 </div>      <script>      
-const EMBEDDED = `가게      
-가구      
-가방      
-가수      
-가족      
-가지      
-가위      
-가을      
-가죽      
-가축      
-간식      
-간장      
-갈비      
-감기      
-감자      
-강물      
-강아지      
-강풍      
-개미      
-거미      
-거리      
-거울      
-건물      
-게임      
-겨울      
-경기      
-계란      
-고기      
-고래      
-고양이      
-고추      
-공기      
-공원      
-공책      
-과일      
-과자      
-광산      
-교실      
-구름      
-구두      
-국수      
-군인      
-그림      
-기계      
-기린      
-기름      
-기차      
-김밥      
-까치      
-꽃밭      
-나무      
-나라      
-나비      
-낙엽      
-난로      
-날개      
-남자      
-냄비      
-냉장고      
-노래      
-노을      
-농구      
-눈물      
-다리      
-다람쥐      
-단추      
-달력      
-달빛      
-닭고기      
-당근      
-대문      
-도로      
-도서관      
-도시      
-동굴      
-동물      
-돼지      
-두부      
-드라마      
-딸기      
-라디오      
-라면      
-로봇      
-마늘      
-마을      
-마음      
-만두      
-망치      
-머리      
-모자      
-목걸이      
-무지개      
-문어      
-물고기      
-물병      
-미로      
-바나나      
-바다      
-바람      
-바위      
-박물관      
-반지      
-밥상      
-방울      
-배추      
-버스      
-벌레      
-벽돌      
-병원      
-보리      
-보석      
-복숭아      
-봄날      
-부엌      
-불꽃      
-비누      
-비행기      
-사과      
-사슴      
-사진      
-산길      
-상자      
-새우      
-선물      
-선풍기      
-설탕      
-소금      
-소나무      
-소리      
-수박      
-수영      
-숟가락      
-시계      
-시장      
-신발      
-실내      
-실험      
-실험실      
-아기      
-아침      
-안경      
-야구      
-약국      
-양말      
-양파      
-어깨      
-얼음      
-여름      
-여자      
-여행      
-연기      
-연필      
-열쇠      
-영화      
-오리      
-오징어      
-우산      
-운동      
-원숭이      
-유리      
-음악      
-의자      
-이불      
-이빨      
-인형      
-자동차      
-자전거      
-장갑      
-장미      
-저녁      
-전구      
-전화      
-접시      
-주머니      
-지도      
-지우개      
-지하철      
-집게      
-책상      
-창문      
-체육      
-초콜릿      
-축구      
-치약      
-칫솔      
-카메라      
-커피      
-컴퓨터      
-코끼리      
-콩나물      
-토끼      
-토마토      
-파도      
-파리      
-포도      
-풍선      
-피아노      
-학교      
-학생      
-해바라기      
-햄버거      
-호랑이      
-호수      
-화분      
-화장실      
-휴대폰      
-가갸      
-자휼      
-자치동갭      
-가마솥      
-솥뚜꼉      
-가마뚜꽈      
-과실쨤      
-다래쨤      
-사과쨤      
-물로켓      
-머리컽  
-똔레      
-색걍      
-나레이션      
-창부굿      
-시꼉굿      
-마음껀      
-톈안먼      
-두듥      
-초췌      
-호라지좆      
-츰적      
-믜신것      
-되프뎧      
-치마기슭      
-옷기슭      
-바지기슭      
-녕기슭      
-턴넬      
-샬뎬      
-밧듸      
-원두앝      
-절댓값      
-겁쟤      
-규슨      
-나락짚      
-짚뽈      
-집텋      
-페르뮴      
-뜽껄      
-가매뜽      
-경뎜      
-쑥눔      
-가레갊      
-갓붑      
-우틔      
-지싥      
-촌구섴      
-복상뾔      
-폄칭      
-칭웅      
-웅젤      
-시오미사키곶      
-마카로니웨스턴      
-가을볕      
-얼굴값      
-결괏값      
-귀붏      
-농약값      
-농산물값      
-밭지숡      
-농짓값      
-아랫닛므윰      
-사우샘프턴      
-강능띱      
-짓않      
-콜리스티메테이트소듐      
-벽화덕      
-접이섶      
-괴발디딤      
-죽숟가락      
-덕거뮈      
-열성껏      
-뼈마디아픔      
-괙머리굿      
-분수껏      
-임곗값      
-슥돗      
-앗쌤      
-뻬빠      
-한뉜      
-증갓값      
-플레로븀      
-다시마숲      
-데카메토늄      
-프라세오디뮴      
-뻬룩      
-셸락      
-만쯤      
-골밑슛      
-쯔사리값      
-궤틀      
-움쾜      
-부싴      
-부샄      
-부뚜멐      
-부수짗      
-부옄      
-샛깆      
-섯븐      
-훤혁      
-쓰촨      
-부풂      
-언쟁꾼      
-식료품값      
-인듐      
-삭둑삭둑      
-커피숍      
-등졍      
-졍듀      
-듀셕      
-셕류황      
-진및      
-듁슌      
-맛향      
-진듯      
-앵귤레이션      
-슴바꾸      
-꾸밈      
-엄겍      
-실궘      
-가례부췌      
-문녘      
-췌행      
-글픠      
-끗창      
-췌괘      
-성놔      
-잇몸      
-갑졀      
-찍는목      
-채매앝      
-평가락지매듭      
-투스텝      
-긔혈      
-노듈      
-별신경매듭      
-대숳      
-당근값      
-갭착      
-마이크로폼      
-사굠      
-긋젝      
-슨하품      
-사꽤      
-깔끼잙      
-슈아죌      
-줄어듦      
-좆벵      
-나구쟤      
-얘쟤      
-나가오카쿄      
-나무갗      
-초가싥      
-음룟값      
-좌극한값      
-좌푯값      
-쟝즙      
-쟝굿      
-교찻값      
-교환값      
-판밲      
-뚱깃      
-에이쿄      
-홀뮴      
-합장매듭      
-나이쨈      
-욜쒜      
-섶가랑잎      
-자르브뤼켄      
-렛슨      
-등츩      
-쥬복곻      
-초어읆      
-여린히읗      
-된히읗      
-쌍히읗      
-낭간기슭      
-겜티즌      
-음죵      
-억패듯      
-질녘      
-블루헤븐      
-추쁘      
-닻꽃      
-옥돓      
-마우어하켄      
-탸례      
-군긹      
-긴끗      
-뎨튝      
-뭇떡잎      
-넷째손구락      
-톤네츠      
-셋곹      
-츳세벡      
-로켓      
-함씌      
-함끠      
-쥐왐쥐왐  
+const EMBEDDED = `가게
+가구
+가방
+가수
+가족
+가지
+가위
+가을
+가죽
+가축
+간식
+간장
+갈비
+감기
+감자
+강물
+강아지
+강풍
+개미
+거미
+거리
+거울
+건물
+게임
+겨울
+경기
+계란
+고기
+고래
+고양이
+고추
+공기
+공원
+공책
+과일
+과자
+광산
+교실
+구름
+구두
+국수
+군인
+그림
+기계
+기린
+기름
+기차
+김밥
+까치
+꽃밭
+나무
+나라
+나비
+낙엽
+난로
+날개
+남자
+냄비
+냉장고
+노래
+노을
+농구
+눈물
+다리
+다람쥐
+단추
+달력
+달빛
+닭고기
+당근
+대문
+도로
+도서관
+도시
+동굴
+동물
+돼지
+두부
+드라마
+딸기
+라디오
+라면
+로봇
+마늘
+마을
+마음
+만두
+망치
+머리
+모자
+목걸이
+무지개
+문어
+물고기
+물병
+미로
+바나나
+바다
+바람
+바위
+박물관
+반지
+밥상
+방울
+배추
+버스
+벌레
+벽돌
+병원
+보리
+보석
+복숭아
+봄날
+부엌
+불꽃
+비누
+비행기
+사과
+사슴
+사진
+산길
+상자
+새우
+선물
+선풍기
+설탕
+소금
+소나무
+소리
+수박
+수영
+숟가락
+시계
+시장
+신발
+실내
+실험
+실험실
+아기
+아침
+안경
+야구
+약국
+양말
+양파
+어깨
+얼음
+여름
+여자
+여행
+연기
+연필
+열쇠
+영화
+오리
+오징어
+우산
+운동
+원숭이
+유리
+음악
+의자
+이불
+이빨
+인형
+자동차
+자전거
+장갑
+장미
+저녁
+전구
+전화
+접시
+주머니
+지도
+지우개
+지하철
+집게
+책상
+창문
+체육
+초콜릿
+축구
+치약
+칫솔
+카메라
+커피
+컴퓨터
+코끼리
+콩나물
+토끼
+토마토
+파도
+파리
+포도
+풍선
+피아노
+학교
+학생
+해바라기
+햄버거
+호랑이
+호수
+화분
+화장실
+휴대폰
+가갸
+자휼
+자치동갭
+가마솥
+솥뚜꼉
+가마뚜꽈
+과실쨤
+다래쨤
+사과쨤
+물로켓
+머리컽
+똔레
+색걍
+나레이션
+창부굿
+시꼉굿
+마음껀
+톈안먼
+두듥
+초췌
+호라지좆
+츰적
+믜신것
+되프뎧
+치마기슭
+옷기슭
+바지기슭
+녕기슭
+턴넬
+샬뎬
+밧듸
+원두앝
+절댓값
+겁쟤
+규슨
+나락짚
+짚뽈
+집텋
+페르뮴
+뜽껄
+가매뜽
+경뎜
+쑥눔
+가레갊
+갓붑
+우틔
+지싥
+촌구섴
+복상뾔
+폄칭
+칭웅
+웅젤
+시오미사키곶
+마카로니웨스턴
+가을볕
+얼굴값
+결괏값
+귀붏
+농약값
+농산물값
+밭지숡
+농짓값
+아랫닛므윰
+사우샘프턴
+강능띱
+짓않
+콜리스티메테이트소듐
+벽화덕
+접이섶
+괴발디딤
+죽숟가락
+덕거뮈
+열성껏
+뼈마디아픔
+괙머리굿
+분수껏
+임곗값
+슥돗
+앗쌤
+뻬빠
+한뉜
+증갓값
+플레로븀
+다시마숲
+데카메토늄
+프라세오디뮴
+뻬룩
+셸락
+만쯤
+골밑슛
+쯔사리값
+궤틀
+움쾜
+부싴
+부샄
+부뚜멐
+부수짗
+부옄
+샛깆
+섯븐
+훤혁
+쓰촨
+부풂
+언쟁꾼
+식료품값
+인듐
+삭둑삭둑
+커피숍
+등졍
+졍듀
+듀셕
+셕류황
+진및
+듁슌
+맛향
+진듯
+앵귤레이션
+슴바꾸
+꾸밈
+엄겍
+실궘
+가례부췌
+문녘
+췌행
+글픠
+끗창
+췌괘
+성놔
+잇몸
+갑졀
+찍는목
+채매앝
+평가락지매듭
+투스텝
+긔혈
+노듈
+별신경매듭
+대숳
+당근값
+갭착
+마이크로폼
+사굠
+긋젝
+슨하품
+사꽤
+깔끼잙
+슈아죌
+줄어듦
+좆벵
+나구쟤
+얘쟤
+나가오카쿄
+나무갗
+초가싥
+음룟값
+좌극한값
+좌푯값
+쟝즙
+쟝굿
+교찻값
+교환값
+판밲
+뚱깃
+에이쿄
+홀뮴
+합장매듭
+나이쨈
+욜쒜
+섶가랑잎
+자르브뤼켄
+렛슨
+등츩
+쥬복곻
+초어읆
+여린히읗
+된히읗
+쌍히읗
+낭간기슭
+겜티즌
+음죵
+억패듯
+질녘
+블루헤븐
+추쁘
+닻꽃
+옥돓
+마우어하켄
+탸례
+군긹
+긴끗
+뎨튝
+뭇떡잎
+넷째손구락
+톤네츠
+셋곹
+츳세벡
+로켓
+함씌
+함끠
+쥐왐쥐왐
 설베니실린나트륨
 실라스타틴나트륨
 니오븀
@@ -1531,6 +1538,8 @@ const EMBEDDED = `가게
 그뭄
 이뭄
 핀셋
+핀치가죽
+핀지가죽
 핀란드
 앵귤레이션
 레귤레이션
@@ -1757,26 +1766,26 @@ const EMBEDDED = `가게
 심프슨
 심부름꾼
 심부름값
-예나랗      
-주금꺠      
-잎점무늬      
-느븨      
+예나랗
+주금꺠
+잎점무늬
+느븨
 낙성굿
-각좆      
-중첩모듈      
-작수뽐쁘      
-늘흿늘흿      
-창밖      
-갇긴      
-주앝      
-직교켜      
-깃무늬      
-레몬제라늄      
-켄턴      
-긔츌      
-가챠      
-솔옺      
-날옺      
+각좆
+중첩모듈
+작수뽐쁘
+늘흿늘흿
+창밖
+갇긴
+주앝
+직교켜
+깃무늬
+레몬제라늄
+켄턴
+긔츌
+가챠
+솔옺
+날옺
 톱날
 톱니
 톱날무늬
@@ -1909,7 +1918,7 @@ const EMBEDDED = `가게
 댄디즘
 빅토리아니즘
 먼즘
-걀쯤      
+걀쯤
 기지개
 기분
 기본
@@ -9070,6 +9079,15 @@ const EMBEDDED = `가게
 하품
 한낮
 한밤
+마음껏
+맘껏
+펜션
+형광펜
+갇긴
+갇모
+갇헤다
+갇히다
+갇다
 한숨
 해변
 햇빛
@@ -9083,42 +9101,112 @@ const EMBEDDED = `가게
 휴지
 휴지통
 흙길
-몽생미셸      
-링가야탸      
-귿곻      
-시브란스고칼슘      
-태껸      
-땜벽      
-시티콜린소듐     
-전깃값      
-벳꽂     
-세슘   
-놈삐썹      
-우노녹튬      
-콘텐츠      
-군버릇     
-승냬      
-읒저냑      
-주삣      
-요샙비샙      
-능력껏      
-장닼      
-발볌발볌      
-광산겜      
-푸퉈      
-손뜹      
-케잌      
-쌈꾼      
-갸자꾼      
-슐레겔      
-믈뎜      
-뎜방      
-화뎬      
-정자매듭      
-석달그믐      
-뉘릿뉘릿      
-사태막이숲      
-표준틀`.split(/\s+/).filter(Boolean);      
+몽생미셸
+링가야탸
+귿곻
+시브란스고칼슘
+태껸
+땜벽
+시티콜린소듐
+전깃값
+벳꽂
+세슘
+놈삐썹
+우노녹튬
+콘텐츠
+군버릇
+승냬
+읒저냑
+주삣
+요샙비샙
+능력껏
+장닼
+발볌발볌
+광산겜
+푸퉈
+손뜹
+케잌
+쌈꾼
+갸자꾼
+슐레겔
+믈뎜
+뎜방
+화뎬
+정자매듭
+석달그믐
+뉘릿뉘릿
+사태막이숲
+표준틀
+깨깨
+늪지대
+늪지
+욜로
+쒜쒜
+쒜비놈
+쒜다
+쒜우다
+준피크
+준말
+줌통
+쉬옘
+쉬욈
+추가
+라듐
+리듬감
+감정값
+감정
+리듬
+광두뎡
+쵸뎡
+걱뎡
+굴근외얏
+꼿삽
+훼예포폄
+멸칭
+갊다
+큰긿
+가린긿
+게으르다
+긿다
+게다
+어움
+어려움
+쉬움
+궤도
+구듭
+구듧
+꽃부듸
+꽤배기
+꽈배기
+꽈릿빛
+김장값
+꽈리고추튀김
+사이클로헵타놀
+톤팔징팔
+롤케잌
+마이크로캡슐
+캡슐
+키캡
+키읔
+읒지냑
+읒저녁
+읒지녁
+나준녘
+허리아픔
+찍찍
+찍하면
+찍덕
+면벚
+벚꽃잎
+끔벅
+끔벅끔벅
+끔뻑
+끔뻑끔뻑
+끔벅번쩍
+끔쩍
+끔쩍끔쩍
+끔박
+끔박끔박`.split(/\s+/).filter(Boolean);      
       
 const BLOCK = new Set(["날뷁"]);      
       
@@ -9128,12 +9216,160 @@ let byFirst = new Map();
 let used = new Set();      
 let current = null;      
 let userTurn = 0;      
-let gameOver = false;      
-      
+let gameOver = false;
+
+const SAVE_KEY = "gugugagaga_save_v1";
+let coins = 0;
+let ownedItems = new Set();
+let historyData = [];
+let winRewarded = false;
+let coinMultiplier = 1;
+
+const SHOP_ITEMS = [
+  {id:"cheat", name:"🕵️ 컨닝", price:50, desc:"현재 낼 수 있는 최선의 단어 1개"},
+  {id:"candidates", name:"🔍 후보 보기", price:100, desc:"좋은 단어 3개"},
+  {id:"revive", name:"🛡️ 한방 방어", price:200, desc:"AI 한방 공격을 1회 막음"},
+  {id:"mult2", name:"💰 승리 코인 2×", price:100, mult:2},
+  {id:"mult4", name:"💰 승리 코인 4×", price:250, mult:4},
+  {id:"mult5", name:"💰 승리 코인 5×", price:400, mult:5},
+  {id:"mult8", name:"💰 승리 코인 8×", price:800, mult:8},
+  {id:"mult10", name:"💰 승리 코인 10×", price:1000, mult:10},
+  {id:"mult12", name:"💰 승리 코인 12×", price:1400, mult:12},
+  {id:"mult14", name:"💰 승리 코인 14×", price:1800, mult:14},
+  {id:"mult15", name:"💰 승리 코인 15×", price:2200, mult:15},
+  {id:"mult18", name:"💰 승리 코인 18×", price:3000, mult:18},
+  {id:"mult20", name:"💰 승리 코인 20×", price:4000, mult:20}
+];
+
 const $ = id => document.getElementById(id);      
 const statusEl = $("status");      
-const historyEl = $("history");      
-      
+const historyEl = $("history");
+
+function saveGame(){
+  const data = {
+    coins,
+    ownedItems:[...ownedItems],
+    used:[...used],
+    current,
+    userTurn,
+    gameOver,
+    historyData,
+    winRewarded,
+    coinMultiplier
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    coins = Number(d.coins) || 0;
+    ownedItems = new Set(Array.isArray(d.ownedItems) ? d.ownedItems : []);
+    used = new Set(Array.isArray(d.used) ? d.used.filter(w => dictSet.has(w)) : []);
+    current = typeof d.current === "string" ? d.current : null;
+    userTurn = Number(d.userTurn) || 0;
+    gameOver = !!d.gameOver;
+    historyData = Array.isArray(d.historyData) ? d.historyData : [];
+    winRewarded = !!d.winRewarded;
+    coinMultiplier = Math.max(1, Number(d.coinMultiplier) || 1);
+    return !!current || historyData.length > 0 || coins > 0 || ownedItems.size > 0;
+  }catch(e){ return false; }
+}
+
+function renderHistory(){
+  historyEl.innerHTML = "";
+  if(!historyData.length){
+    historyEl.textContent = "아직 낸 단어가 없음.";
+    return;
+  }
+  for(const x of historyData){
+    const d = document.createElement("div");
+    d.className = x.who === "나" ? "you" : "ai";
+    d.textContent = `${x.who}: ${x.w}`;
+    historyEl.appendChild(d);
+  }
+}
+
+function rankUserChoices(){
+  if(gameOver || !current) return [];
+  return replies(last(current))
+    .filter(w => userTurn !== 0 || countReplies(last(w), w, 2) >= 2)
+    .map(w => ({w, n:countReplies(last(w), w, Infinity)}))
+    .sort((a,b) => a.n-b.n || b.w.length-a.w.length || a.w.localeCompare(b.w));
+}
+
+function useShopItem(id){
+  const item=SHOP_ITEMS.find(x=>x.id===id);
+  if(!item || coins<item.price) return;
+  if(id==="cheat"){
+    const a=rankUserChoices(); if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
+    coins-=item.price; renderShop(); saveGame();
+    return setStatus(`🕵️ 컨닝: ${a[0].w} · 상대 답변 ${a[0].n}개`);
+  }
+  if(id==="candidates"){
+    const a=rankUserChoices().slice(0,3); if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
+    coins-=item.price; renderShop(); saveGame();
+    return setStatus(`🔍 후보: ${a.map(x=>`${x.w}(${x.n})`).join(" / ")}`);
+  }
+  if(id==="revive"){
+    ownedItems.add("revive"); coins-=item.price; renderShop(); saveGame();
+    return setStatus("🛡️ 한방 방어 장착 완료");
+  }
+  if(item.mult){
+    const multItems = SHOP_ITEMS.filter(x => x.mult);
+    const nextMult = multItems.find(x => x.mult > coinMultiplier);
+    if(!nextMult || item.id !== nextMult.id){
+      return setStatus("이전 배수를 먼저 구매해야 함", true);
+    }
+    coins -= item.price;
+    coinMultiplier = item.mult;
+    renderShop(); saveGame();
+    return setStatus(`💰 승리 코인 ${item.mult}× 적용! 승리 시 ${20*item.mult}코인`);
+  }
+}
+
+function renderShop(){
+  $("coins").textContent=coins.toLocaleString();
+  const box=$("shop"); box.innerHTML="";
+
+  const multItems = SHOP_ITEMS.filter(x => x.mult);
+  const nextMult = multItems.find(x => x.mult > coinMultiplier);
+
+  for(const item of SHOP_ITEMS){
+    if(item.mult && (!nextMult || item.id !== nextMult.id)) continue;
+
+    const row=document.createElement("div"); row.className="shopItem";
+    const label=document.createElement("span");
+    const desc = item.mult
+      ? `현재 ${coinMultiplier}× · 구매 후 승리당 ${20*item.mult}코인`
+      : item.desc;
+    label.innerHTML=`<b>${item.name} — ${item.price}코인</b><br><small>${desc}</small>`;
+    const btn=document.createElement("button");
+    const armed=item.id==="revive" && ownedItems.has("revive");
+    btn.textContent=armed?"장착됨":item.mult?"구매":"사용";
+    btn.disabled = armed || coins < item.price;
+    btn.onclick=()=>useShopItem(item.id);
+    row.append(label,btn); box.appendChild(row);
+  }
+
+  if(!nextMult){
+    const done=document.createElement("div");
+    done.className="shopItem";
+    done.innerHTML=`<span><b>💰 승리 코인 ${coinMultiplier}×</b><br><small>최대 배수 달성 🔥</small></span>`;
+    box.appendChild(done);
+  }
+}
+
+function rewardWin(){
+  if(winRewarded) return;
+  winRewarded = true;
+  coins += 20 * coinMultiplier;
+  renderShop();
+  saveGame();
+}
+
 function normalizeWords(arr){      
   const out = [];      
   const s = new Set();      
@@ -9295,7 +9531,9 @@ function addHistory(w, who){
   d.className = who === "나" ? "you" : "ai";      
   d.textContent = `${who}: ${w}`;      
       
-  historyEl.prepend(d);      
+  historyEl.prepend(d);
+  historyData.unshift({w,who});
+  saveGame();
 }      
       
 function updateUI(){      
@@ -9362,7 +9600,9 @@ function aiMove(){
       "AI가 낼 단어가 없음 — 네 승리 🎉"      
     );      
       
-    gameOver = true;      
+    gameOver = true;
+    rewardWin();
+    saveGame();
     return;      
   }      
       
@@ -9418,16 +9658,25 @@ function aiMove(){
       true      
     );      
       
+    
+    if(ownedItems.has("revive")){
+      ownedItems.delete("revive");
+      gameOver=false;
+      setStatus("🛡️ 한방 방어 발동! 이번 패배를 막음");
+      renderShop(); saveGame();
+      return;
+    }
     gameOver = true;      
       
   }else{      
       
-    setStatus(      
-      `AI가 "${best}" 냄`      
-    );      
-  }      
-}      
-      
+    setStatus(
+      `AI가 "${best}" 냄`
+    );
+  }
+  saveGame();
+}
+
 function submitWord(){      
       
   if(gameOver){      
@@ -9542,6 +9791,8 @@ function submitWord(){
   current = null;
   userTurn = 0;
   gameOver = false;
+  historyData = [];
+  winRewarded = false;
 
   historyEl.textContent =
     "아직 낸 단어가 없음.";
@@ -9571,6 +9822,8 @@ function submitWord(){
   setStatus(
     `"${start}"로 시작하는 단어를 내세요`
   );
+  renderShop();
+  saveGame();
 }    
 $("submitBtn").onclick =      
   submitWord;      
@@ -9686,11 +9939,22 @@ $("dictFile")
     }      
   );      
       
-buildDictionary(      
-  EMBEDDED      
-);      
-      
-resetGame();      
-      
+buildDictionary(
+  EMBEDDED
+);
+
+if(loadGame()){
+  renderHistory();
+  updateUI();
+  renderShop();
+  saveGame();
+  setStatus(gameOver ? "저장된 게임 종료 상태를 불러옴" : "저장된 진행상황을 불러옴");
+}else{
+  resetGame();
+  renderShop();
+}
+
+window.addEventListener("beforeunload", saveGame);
+
 </script>      </body>      
 </html>
