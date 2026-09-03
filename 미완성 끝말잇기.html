@@ -21,6 +21,26 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center} .stats div{background:#111827;border-radius:12px;padding:10px}      
 #history{max-height:270px;overflow:auto;line-height:1.65} .shopItem{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#111827;border-radius:12px;padding:10px;margin-top:8px} .shopItem button:disabled{opacity:.45;cursor:not-allowed} .you{color:#93c5fd} .ai{color:#fca5a5} .ok{color:#86efac} .bad{color:#fca5a5}      
 #status{min-height:24px;font-weight:700;margin-top:10px}      
+
+/* 상점 아이템 가로 배치 */
+.shopItem{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+}
+.shopItem > span:last-child{
+  display:flex !important;
+  flex-direction:row !important;
+  gap:6px !important;
+  flex-wrap:nowrap !important;
+}
+.shopItem button{
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+
 </style>      
 </head>      
 <body>      
@@ -56,9 +76,9 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
   </div>        <div class="card">
     <div class="row" style="justify-content:space-between;align-items:center">
       <b>상점</b>
-      <b>🪙 <span id="coins">0</span> 코인</b>
+      <span><b>🏆 <span id="wins">0</span>승</b> · <b>🪙 <span id="coins">0</span> 코인</b></span>
     </div>
-    <div class="muted" style="margin-top:6px">승리하면 20코인 · 실전 아이템/진행상황 자동 저장</div>
+    <div class="muted" style="margin-top:6px">승리하면 승수 획득 · 20코인 · 실전 아이템/진행상황 자동 저장</div>
     <div id="shop"></div>
   </div>        <div class="card">      
     <b>기록</b>      
@@ -628,7 +648,6 @@ const EMBEDDED = `가게
 븨피
 피토크로뮴
 피읖
-피토헬륨
 션보롬
 놈삐썹
 썹밤
@@ -1745,7 +1764,6 @@ const EMBEDDED = `가게
 떡값
 갭핑
 핑거팁
-팁포르닉
 닉넴
 넴도부
 기휼
@@ -9337,9 +9355,304 @@ let gameOver = false;
 const SAVE_KEY = "gugugagaga_save_v1";
 let coins = 0;
 let ownedItems = new Set();
+let itemStock = {cheat:0, candidates:0, revive:0};
 let historyData = [];
 let winRewarded = false;
 let coinMultiplier = 1;
+let totalWins = 0;
+let spentWins = 0;
+let winMultiplier = 1;
+let winItemStock = { freeDueum: 0 };
+let armedWinItem = null;
+
+const WIN_SHOP_ITEMS = [
+  {
+    id:"freeDueum",
+    name:"🔓 자유 두음 1회권",
+    priceWins:5,
+    desc:"다음 한 번의 입력에서만 ㄹ·ㄴ·ㅇ을 서로 두음 처리 가능"
+  },
+  {
+    id:"winMult2",
+    name:"🏆 승수 2×",
+    priceWins:5,
+    winMult:2,
+    desc:"승리할 때 2승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult4",
+    name:"🏆 승수 4×",
+    priceWins:10,
+    winMult:4,
+    desc:"승리할 때 4승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult8",
+    name:"🏆 승수 8×",
+    priceWins:15,
+    winMult:8,
+    desc:"승리할 때 8승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult10",
+    name:"🏆 승수 10×",
+    priceWins:20,
+    winMult:10,
+    desc:"승리할 때 10승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult12",
+    name:"🏆 승수 12×",
+    priceWins:25,
+    winMult:12,
+    desc:"승리할 때 12승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult14",
+    name:"🏆 승수 14×",
+    priceWins:30,
+    winMult:14,
+    desc:"승리할 때 14승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult18",
+    name:"🏆 승수 18×",
+    priceWins:35,
+    winMult:18,
+    desc:"승리할 때 18승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult20",
+    name:"🏆 승수 20×",
+    priceWins:40,
+    winMult:20,
+    desc:"승리할 때 20승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult22",
+    name:"🏆 승수 22×",
+    priceWins:45,
+    winMult:22,
+    desc:"승리할 때 22승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult24",
+    name:"🏆 승수 24×",
+    priceWins:50,
+    winMult:24,
+    desc:"승리할 때 24승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult28",
+    name:"🏆 승수 28×",
+    priceWins:55,
+    winMult:28,
+    desc:"승리할 때 28승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult30",
+    name:"🏆 승수 30×",
+    priceWins:60,
+    winMult:30,
+    desc:"승리할 때 30승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult32",
+    name:"🏆 승수 32×",
+    priceWins:65,
+    winMult:32,
+    desc:"승리할 때 32승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult34",
+    name:"🏆 승수 34×",
+    priceWins:70,
+    winMult:34,
+    desc:"승리할 때 34승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult38",
+    name:"🏆 승수 38×",
+    priceWins:75,
+    winMult:38,
+    desc:"승리할 때 38승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult40",
+    name:"🏆 승수 40×",
+    priceWins:80,
+    winMult:40,
+    desc:"승리할 때 40승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult42",
+    name:"🏆 승수 42×",
+    priceWins:85,
+    winMult:42,
+    desc:"승리할 때 42승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult44",
+    name:"🏆 승수 44×",
+    priceWins:90,
+    winMult:44,
+    desc:"승리할 때 44승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult48",
+    name:"🏆 승수 48×",
+    priceWins:95,
+    winMult:48,
+    desc:"승리할 때 48승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult50",
+    name:"🏆 승수 50×",
+    priceWins:100,
+    winMult:50,
+    desc:"승리할 때 50승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult52",
+    name:"🏆 승수 52×",
+    priceWins:105,
+    winMult:52,
+    desc:"승리할 때 52승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult54",
+    name:"🏆 승수 54×",
+    priceWins:110,
+    winMult:54,
+    desc:"승리할 때 54승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult58",
+    name:"🏆 승수 58×",
+    priceWins:115,
+    winMult:58,
+    desc:"승리할 때 58승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult60",
+    name:"🏆 승수 60×",
+    priceWins:120,
+    winMult:60,
+    desc:"승리할 때 60승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult62",
+    name:"🏆 승수 62×",
+    priceWins:125,
+    winMult:62,
+    desc:"승리할 때 62승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult64",
+    name:"🏆 승수 64×",
+    priceWins:130,
+    winMult:64,
+    desc:"승리할 때 64승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult68",
+    name:"🏆 승수 68×",
+    priceWins:135,
+    winMult:68,
+    desc:"승리할 때 68승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult70",
+    name:"🏆 승수 70×",
+    priceWins:140,
+    winMult:70,
+    desc:"승리할 때 70승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult72",
+    name:"🏆 승수 72×",
+    priceWins:145,
+    winMult:72,
+    desc:"승리할 때 72승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult74",
+    name:"🏆 승수 74×",
+    priceWins:150,
+    winMult:74,
+    desc:"승리할 때 74승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult78",
+    name:"🏆 승수 78×",
+    priceWins:155,
+    winMult:78,
+    desc:"승리할 때 78승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult80",
+    name:"🏆 승수 80×",
+    priceWins:160,
+    winMult:80,
+    desc:"승리할 때 80승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult82",
+    name:"🏆 승수 82×",
+    priceWins:165,
+    winMult:82,
+    desc:"승리할 때 82승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult84",
+    name:"🏆 승수 84×",
+    priceWins:170,
+    winMult:84,
+    desc:"승리할 때 84승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult88",
+    name:"🏆 승수 88×",
+    priceWins:175,
+    winMult:88,
+    desc:"승리할 때 88승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult90",
+    name:"🏆 승수 90×",
+    priceWins:180,
+    winMult:90,
+    desc:"승리할 때 90승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult92",
+    name:"🏆 승수 92×",
+    priceWins:185,
+    winMult:92,
+    desc:"승리할 때 92승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult94",
+    name:"🏆 승수 94×",
+    priceWins:190,
+    winMult:94,
+    desc:"승리할 때 94승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult98",
+    name:"🏆 승수 98×",
+    priceWins:195,
+    winMult:98,
+    desc:"승리할 때 98승씩 획득 · 영구 적용"
+  },
+  {
+    id:"winMult100",
+    name:"🏆 승수 100×",
+    priceWins:200,
+    winMult:100,
+    desc:"승리할 때 100승씩 획득 · 영구 적용"
+  }
+];
 
 const SHOP_ITEMS = [
   {id:"cheat", name:"🕵️ 컨닝", price:50, desc:"현재 낼 수 있는 최선의 단어 1개"},
@@ -9365,13 +9678,19 @@ function saveGame(){
   const data = {
     coins,
     ownedItems:[...ownedItems],
+    itemStock,
     used:[...used],
     current,
     userTurn,
     gameOver,
     historyData,
     winRewarded,
-    coinMultiplier
+    coinMultiplier,
+    totalWins,
+    spentWins,
+    winMultiplier,
+    winItemStock,
+    armedWinItem
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
 }
@@ -9383,6 +9702,19 @@ function loadGame(){
     const d = JSON.parse(raw);
     coins = Number(d.coins) || 0;
     ownedItems = new Set(Array.isArray(d.ownedItems) ? d.ownedItems : []);
+    itemStock = (d.itemStock && typeof d.itemStock === "object")
+      ? {
+          cheat:Math.max(0,Number(d.itemStock.cheat)||0),
+          candidates:Math.max(0,Number(d.itemStock.candidates)||0),
+          revive:Math.max(0,Number(d.itemStock.revive)||0)
+        }
+      : {cheat:0,candidates:0,revive:0};
+
+    // 구버전에서 장착된 revive가 남아 있으면 1개 보유로 변환
+    if(ownedItems.has("revive")){
+      itemStock.revive = Math.max(1,itemStock.revive);
+      ownedItems.delete("revive");
+    }
     used = new Set(Array.isArray(d.used) ? d.used.filter(w => dictSet.has(w)) : []);
     current = typeof d.current === "string" ? d.current : null;
     userTurn = Number(d.userTurn) || 0;
@@ -9390,7 +9722,14 @@ function loadGame(){
     historyData = Array.isArray(d.historyData) ? d.historyData : [];
     winRewarded = !!d.winRewarded;
     coinMultiplier = Math.max(1, Number(d.coinMultiplier) || 1);
-    return !!current || historyData.length > 0 || coins > 0 || ownedItems.size > 0;
+    totalWins = Math.max(0, Number(d.totalWins) || 0);
+    spentWins = Math.max(0, Number(d.spentWins) || 0);
+    winMultiplier = Math.max(1, Number(d.winMultiplier) || 1);
+    winItemStock = (d.winItemStock && typeof d.winItemStock === "object")
+      ? { freeDueum: Math.max(0, Number(d.winItemStock.freeDueum) || 0) }
+      : { freeDueum: 0 };
+    armedWinItem = d.armedWinItem === "freeDueum" ? "freeDueum" : null;
+    return !!current || historyData.length > 0 || coins > 0 || ownedItems.size > 0 || totalWins > 0 || winItemStock.freeDueum > 0;
   }catch(e){ return false; }
 }
 
@@ -9408,66 +9747,458 @@ function renderHistory(){
   }
 }
 
+// 모바일용 전략 엔진: 한방은 정확히 찾고, 깊은 탐색은 좋은 후보만 가지치기한다.
+const STRATEGY_MEMO = new Map();
+
+function strategyKey(letter, extraUsed, depth){
+  const tail=[...extraUsed].slice(-4).sort().join(",");
+  return `${used.size}|${letter}|${depth}|${tail}`;
+}
+
+function strategicReplyCount(letter, extraUsed=new Set(), exclude=null, stop=Infinity){
+  let n=0;
+  for(const c of allowed(letter)){
+    for(const w of (byFirst.get(c)||[])){
+      if(w===exclude || used.has(w) || extraUsed.has(w)) continue;
+      if(++n>=stop) return n;
+    }
+  }
+  return n;
+}
+
+function strategicMoves(letter, extraUsed=new Set(), limit=26){
+  const all=[];
+  for(const c of allowed(letter)){
+    for(const w of (byFirst.get(c)||[])){
+      if(!used.has(w) && !extraUsed.has(w)) all.push(w);
+    }
+  }
+  if(all.length<=limit) return all;
+
+  // 1) 즉시 한방은 전체 후보를 훑어서 절대 놓치지 않는다.
+  const wins=[];
+  for(const w of all){
+    if(strategicReplyCount(last(w), extraUsed, w, 1)===0) wins.push(w);
+  }
+  if(wins.length) return wins.slice(0,limit);
+
+  // 2) 깊은 분석용 후보는 전부 계산하지 않고 고르게 표본을 뽑는다.
+  //    앞/뒤/중간을 섞어서 사전 정렬 편향도 줄인다.
+  const sample=[];
+  const add=w=>{ if(w && !sample.includes(w)) sample.push(w); };
+  const stride=Math.max(1,Math.floor(all.length/70));
+
+  for(let i=0;i<all.length && sample.length<70;i+=stride) add(all[i]);
+  for(let i=all.length-1;i>=0 && sample.length<90;i-=stride) add(all[i]);
+
+  const scored=sample.map(w=>{
+    const n=strategicReplyCount(last(w), extraUsed, w, 45);
+    const loop=(w[0]===last(w)) ? 1 : 0;
+    return {w,n,loop};
+  });
+
+  // 유도/압박 후보 + 생존 폭이 넓은 후보를 같이 남긴다.
+  scored.sort((a,b)=>a.n-b.n || a.loop-b.loop || b.w.length-a.w.length);
+  const picked=[];
+  const pick=x=>{ if(x && !picked.includes(x.w)) picked.push(x.w); };
+
+  scored.slice(0,14).forEach(pick);
+  scored.filter(x=>!x.loop).slice(0,10).forEach(pick);
+  scored.slice(-8).forEach(pick);
+
+  return picked.slice(0,limit);
+}
+
+function strategySearch(letter, extraUsed=new Set(), depth=2){
+  const key=strategyKey(letter, extraUsed, depth);
+  if(STRATEGY_MEMO.has(key)) return STRATEGY_MEMO.get(key);
+
+  const moves=strategicMoves(letter, extraUsed, depth>=2?24:14);
+  if(!moves.length){
+    STRATEGY_MEMO.set(key,-1000000);
+    return -1000000;
+  }
+
+  let best=-Infinity;
+  for(const w of moves){
+    const nextUsed=new Set(extraUsed); nextUsed.add(w);
+    const repliesN=strategicReplyCount(last(w), nextUsed, null, 60);
+
+    if(repliesN===0){
+      STRATEGY_MEMO.set(key,1000000);
+      return 1000000;
+    }
+
+    let score;
+    if(depth<=1){
+      const future=strategicMoves(last(w), nextUsed, 10);
+      score=100 + Math.min(repliesN,60) + future.length*7;
+    }else{
+      score=-strategySearch(last(w), nextUsed, depth-1);
+    }
+
+    // 기기/나나/다다 같은 자기고리는 특별한 이득이 없으면 약간 후순위.
+    if(w[0]===last(w)) score-=20;
+    if(score>best) best=score;
+  }
+
+  STRATEGY_MEMO.set(key,best);
+  // 오래 플레이해도 캐시가 무한정 커지지 않게 함.
+  if(STRATEGY_MEMO.size>2500) STRATEGY_MEMO.clear();
+  return best;
+}
+
+function tacticalEndInfo(endLetter){
+  // 같은 끝글자는 전술 결과가 거의 같으므로 한 턴 동안 한 번만 계산한다.
+  const opp = replies(endLetter);
+  if(!opp.length) return {kind:3, danger:0, replies:0}; // 즉시 한방
+
+  let immediateLosses=0;
+  let forcedReplies=0;
+  let checked=0;
+
+  // 상대의 모든 답을 확인: 상대가 바로 한방으로 끝낼 수 있는 수가 있는지,
+  // 반대로 상대가 뭘 내도 AI가 다음 수에 한방 가능한지 본다.
+  for(const r of opp){
+    if(used.has(r)) continue;
+    checked++;
+    const aiNext = replies(last(r)).filter(x=>!used.has(x) && x!==r);
+    if(!aiNext.length){
+      immediateLosses++;
+      // 하나라도 상대 즉사 수가 있으면 이 끝글자는 위험하다.
+      continue;
+    }
+    let aiHasKill=false;
+    for(const a of aiNext){
+      if(countReplies(last(a), a, 1)===0){ aiHasKill=true; break; }
+    }
+    if(aiHasKill) forcedReplies++;
+  }
+
+  if(!checked) return {kind:3,danger:0,replies:0};
+  if(immediateLosses>0) return {kind:0,danger:immediateLosses,replies:checked}; // 자살 가능 수
+  if(forcedReplies===checked) return {kind:2,danger:0,replies:checked}; // 2수 유도 승리
+  return {kind:1,danger:0,replies:checked}; // 안전한 일반 수
+}
+
+
+function fastAiChoices(letter){
+  const out=[];
+  for(const c of allowed(letter)){
+    for(const w of (byFirst.get(c)||[])){
+      if(used.has(w)) continue;
+      const n=strategicReplyCount(last(w), new Set([w]), null, 30);
+      out.push({w,n,score:n===0?1000000:30-n});
+      if(out.length>=40) break;
+    }
+    if(out.length>=40) break;
+  }
+  return out.sort((a,b)=>b.score-a.score);
+}
+
+function analyzeStrategicChoices(letter, firstTurnRule=false){
+  const moves=[];
+  for(const c of allowed(letter)){
+    for(const w of (byFirst.get(c)||[])){
+      if(!used.has(w)) moves.push(w);
+    }
+  }
+  if(!moves.length) return [];
+
+  // 핵심: 랜덤 표본부터 뽑지 않는다. 전체 후보를 '끝글자' 기준으로 전술 검사한다.
+  // 그래서 살 수 있는데 상대 한방을 열어주는 멍청한 수를 고르는 걸 먼저 막는다.
+  const endCache=new Map();
+  const tactical=[];
+  for(const w of moves){
+    if(firstTurnRule && firstTurnAttackType(w,3)) continue;
+    const e=last(w);
+    let info=endCache.get(e);
+    if(!info){ info=tacticalEndInfo(e); endCache.set(e,info); }
+    tactical.push({w,n:info.replies,kind:info.kind,danger:info.danger,loop:w[0]===e});
+  }
+  if(!tactical.length) return [];
+
+  // 우선순위: 즉시 한방 > 강제 유도승 > 상대 즉사수가 없는 생존수 > 위험수.
+  const maxKind=Math.max(...tactical.map(x=>x.kind));
+  let pool=tactical.filter(x=>x.kind===maxKind);
+
+  // 전술적으로 같은 급 안에서만 깊은 전략을 본다.
+  // 끝글자별 대표를 뽑아 30개 이하로 제한해서 모바일 렉을 막는다.
+  const reps=[];
+  const seenEnd=new Set();
+  pool.sort((a,b)=>a.loop-b.loop || a.n-b.n || b.w.length-a.w.length);
+  for(const x of pool){
+    const e=last(x.w);
+    if(seenEnd.has(e)) continue;
+    seenEnd.add(e); reps.push(x);
+    if(reps.length>=30) break;
+  }
+
+  // 즉시 한방/확정 유도는 깊게 볼 필요가 없다.
+  if(maxKind>=2){
+    return reps.map(x=>({w:x.w,n:x.n,score:maxKind===3?1000000:800000}))
+      .sort((a,b)=>b.score-a.score || a.n-b.n || b.w.length-a.w.length);
+  }
+
+  const out=[];
+  STRATEGY_MEMO.clear();
+  for(const x of reps){
+    const extra=new Set([x.w]);
+    const deep=-strategySearch(last(x.w),extra,2);
+    // 안전성이 최우선. 자기고리는 특별한 이득 없으면 후순위.
+    const score=500000 + deep - (x.loop?30:0) - x.danger*100000;
+    out.push({w:x.w,n:x.n,score});
+  }
+  return out.sort((a,b)=>b.score-a.score || a.n-b.n || b.w.length-a.w.length);
+}
+
+function firstTurnAttackType(word, maxDepth=5){
+  // 첫 턴 공격단어 판정: 즉시 한방뿐 아니라, 상대가 어떤 수를 둬도
+  // 결국 한방/유도로 잡히는 강제승리 수까지 막는다.
+  const memo=new Map();
+
+  function legalMoves(letter, extraUsed, cap=48){
+    const out=[];
+    for(const c of allowed(letter)){
+      for(const x of (byFirst.get(c)||[])){
+        if(used.has(x) || extraUsed.has(x)) continue;
+        out.push(x);
+        if(out.length>=cap) return out;
+      }
+    }
+    return out;
+  }
+
+  // 현재 차례가 maxDepth 안에 강제로 이길 수 있는지 minimax로 판정.
+  function canForce(letter, extraUsed, depth){
+    const key=letter+'|'+depth+'|'+[...extraUsed].slice(-6).sort().join(',');
+    if(memo.has(key)) return memo.get(key);
+    const moves=legalMoves(letter, extraUsed);
+    if(!moves.length){ memo.set(key,false); return false; }
+    if(depth<=0){ memo.set(key,false); return false; }
+
+    for(const x of moves){
+      const nu=new Set(extraUsed); nu.add(x);
+      const opp=legalMoves(last(x), nu);
+      if(!opp.length){ memo.set(key,true); return true; }
+
+      // 이 수 뒤 상대의 모든 대응에 대해 다시 내가 강제승리할 수 있어야 유도 성공.
+      let allRepliesLose=true;
+      for(const r of opp){
+        const nru=new Set(nu); nru.add(r);
+        if(!canForce(last(r), nru, depth-1)){
+          allRepliesLose=false; break;
+        }
+      }
+      if(allRepliesLose){ memo.set(key,true); return true; }
+    }
+    memo.set(key,false); return false;
+  }
+
+  const after=new Set([word]);
+  const replies=legalMoves(last(word), after, 80);
+  if(!replies.length) return 'one';
+
+  // 상대가 어떤 답을 해도 원래 낸 쪽이 다시 강제승리하면 유도단어.
+  for(const r of replies){
+    const u=new Set(after); u.add(r);
+    if(!canForce(last(r), u, maxDepth-1)) return null;
+  }
+  return 'induce';
+}
+
 function rankUserChoices(){
   if(gameOver || !current) return [];
-  return replies(last(current))
-    .filter(w => userTurn !== 0 || countReplies(last(w), w, 2) >= 2)
-    .map(w => ({w, n:countReplies(last(w), w, Infinity)}))
-    .sort((a,b) => a.n-b.n || b.w.length-a.w.length || a.w.localeCompare(b.w));
+  return analyzeStrategicChoices(last(current), userTurn===0);
+}
+function availableWins(){
+  return Math.max(0, totalWins - spentWins);
+}
+
+function buyWinItem(id){
+  const item = WIN_SHOP_ITEMS.find(x => x.id === id);
+  if(!item || availableWins() < item.priceWins) return;
+
+  if(item.winMult){
+    const multItems = WIN_SHOP_ITEMS.filter(x => x.winMult);
+    const nextMult = multItems.find(x => x.winMult > winMultiplier);
+    if(!nextMult || item.id !== nextMult.id){
+      return setStatus("이전 승수 배수를 먼저 구매해야 함", true);
+    }
+
+    spentWins += item.priceWins;
+    winMultiplier = item.winMult;
+    renderShop();
+    saveGame();
+    return setStatus(`🏆 승수 ${item.winMult}× 적용! 이제 승리 시 +${item.winMult}승`);
+  }
+
+  spentWins += item.priceWins;
+  winItemStock[id] = (winItemStock[id] || 0) + 1;
+  renderShop();
+  saveGame();
+  setStatus(`🏆 ${item.name} 구매 완료! 보유 ${winItemStock[id]}개`);
+}
+
+function armWinItem(id){
+  if((winItemStock[id] || 0) <= 0) return;
+  armedWinItem = (armedWinItem === id) ? null : id;
+  renderShop();
+  saveGame();
+  setStatus(armedWinItem === id
+    ? "🔓 자유 두음 1회권 준비됨 — 다음 입력 한 번에만 적용"
+    : "자유 두음 사용 준비 취소");
+}
+
+function buyShopItem(id){
+  const item=SHOP_ITEMS.find(x=>x.id===id);
+  if(!item || item.mult || coins < item.price) return;
+  coins -= item.price;
+  itemStock[id] = (itemStock[id] || 0) + 1;
+  renderShop(); saveGame();
+  setStatus(`${item.name} 구매 완료 · 보유 ${itemStock[id]}개`);
 }
 
 function useShopItem(id){
   const item=SHOP_ITEMS.find(x=>x.id===id);
-  if(!item || coins<item.price) return;
+  if(!item || item.mult || (itemStock[id]||0) <= 0) return;
+
   if(id==="cheat"){
-    const a=rankUserChoices(); if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
-    coins-=item.price; renderShop(); saveGame();
-    return setStatus(`🕵️ 컨닝: ${a[0].w} · 상대 답변 ${a[0].n}개`);
+    const a=rankUserChoices();
+    if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
+    itemStock.cheat--;
+    renderShop(); saveGame();
+    return setStatus(`🕵️ 컨닝(전략 분석): ${a[0].w}`);
   }
+
   if(id==="candidates"){
-    const a=rankUserChoices().slice(0,3); if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
-    coins-=item.price; renderShop(); saveGame();
+    const a=rankUserChoices().slice(0,3);
+    if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
+    itemStock.candidates--;
+    renderShop(); saveGame();
     return setStatus(`🔍 후보: ${a.map(x=>`${x.w}(${x.n})`).join(" / ")}`);
   }
+
   if(id==="revive"){
-    ownedItems.add("revive"); coins-=item.price; renderShop(); saveGame();
-    return setStatus("🛡️ 한방 방어 장착 완료");
-  }
-  if(item.mult){
-    const multItems = SHOP_ITEMS.filter(x => x.mult);
-    const nextMult = multItems.find(x => x.mult > coinMultiplier);
-    if(!nextMult || item.id !== nextMult.id){
-      return setStatus("이전 배수를 먼저 구매해야 함", true);
-    }
-    coins -= item.price;
-    coinMultiplier = item.mult;
+    // '장착됨' 상태 없이, 사용 시 다음 AI 한방 1회 방어를 준비
+    ownedItems.add("revive");
+    itemStock.revive--;
     renderShop(); saveGame();
-    return setStatus(`💰 승리 코인 ${item.mult}× 적용! 승리 시 ${20*item.mult}코인`);
+    return setStatus("🛡️ 한방 방어 사용 완료 · 다음 AI 한방 단어 1회 사용 차단");
   }
 }
 
 function renderShop(){
   $("coins").textContent=coins.toLocaleString();
+  $("wins").textContent=totalWins.toLocaleString();
   const box=$("shop"); box.innerHTML="";
+
+  const winTitle=document.createElement("div");
+  winTitle.className="muted";
+  winTitle.style.marginTop="10px";
+  winTitle.innerHTML=`<b>🏆 승리 상점</b> · 사용 가능 ${availableWins().toLocaleString()}승`;
+  box.appendChild(winTitle);
+
+  for(const item of WIN_SHOP_ITEMS){
+    if(item.winMult){
+      const multItems = WIN_SHOP_ITEMS.filter(x => x.winMult);
+      const nextMult = multItems.find(x => x.winMult > winMultiplier);
+
+      // 이미 산 배수와 아직 잠긴 이후 배수는 숨김.
+      // 현재 살 수 있는 다음 배수 딱 하나만 보이게 함.
+      if(!nextMult || item.id !== nextMult.id) continue;
+    }
+
+    const row=document.createElement("div");
+    row.className="shopItem";
+
+    const label=document.createElement("span");
+    const controls=document.createElement("span");
+    controls.style.display="flex";
+    controls.style.gap="6px";
+    controls.style.flexWrap="wrap";
+
+    if(item.winMult){
+      label.innerHTML=`<b>${item.name} — ${item.priceWins}승</b><br><small>${item.desc}</small>`;
+
+      const buyBtn=document.createElement("button");
+      buyBtn.textContent="구매";
+      buyBtn.disabled=availableWins() < item.priceWins;
+      buyBtn.onclick=()=>buyWinItem(item.id);
+      controls.append(buyBtn);
+    }else{
+      const stock = winItemStock[item.id] || 0;
+      label.innerHTML=`<b>${item.name} — ${item.priceWins}승</b><br><small>${item.desc} · 보유 ${stock}개</small>`;
+
+      const buyBtn=document.createElement("button");
+      buyBtn.textContent="구매";
+      buyBtn.disabled=availableWins() < item.priceWins;
+      buyBtn.onclick=()=>buyWinItem(item.id);
+
+      const useBtn=document.createElement("button");
+      useBtn.textContent=(armedWinItem===item.id) ? "준비됨" : "사용";
+      useBtn.disabled=stock <= 0;
+      useBtn.onclick=()=>armWinItem(item.id);
+
+      controls.append(buyBtn,useBtn);
+    }
+
+    row.append(label,controls);
+    box.appendChild(row);
+  }
+
+  const coinTitle=document.createElement("div");
+  coinTitle.className="muted";
+  coinTitle.style.marginTop="12px";
+  coinTitle.innerHTML="<b>🪙 코인 상점</b>";
+  box.appendChild(coinTitle);
 
   const multItems = SHOP_ITEMS.filter(x => x.mult);
   const nextMult = multItems.find(x => x.mult > coinMultiplier);
 
   for(const item of SHOP_ITEMS){
-    if(item.mult && (!nextMult || item.id !== nextMult.id)) continue;
+    if(item.mult){
+      if(!nextMult || item.id !== nextMult.id) continue;
+      const row=document.createElement("div");
+      row.className="shopItem";
+      const label=document.createElement("span");
+      label.innerHTML=`<b>${item.name} — ${item.price}코인</b><br><small>현재 ${coinMultiplier}× · 구매 후 승리당 ${20*item.mult}코인</small>`;
+      const btn=document.createElement("button");
+      btn.textContent="구매";
+      btn.disabled=coins < item.price;
+      btn.onclick=()=>{
+        if(coins < item.price) return;
+        coins -= item.price;
+        coinMultiplier = item.mult;
+        renderShop(); saveGame();
+        setStatus(`💰 승리 코인 ${item.mult}× 적용`);
+      };
+      row.append(label,btn); box.appendChild(row);
+      continue;
+    }
 
-    const row=document.createElement("div"); row.className="shopItem";
+    const stock=itemStock[item.id]||0;
+    const row=document.createElement("div");
+    row.className="shopItem";
     const label=document.createElement("span");
-    const desc = item.mult
-      ? `현재 ${coinMultiplier}× · 구매 후 승리당 ${20*item.mult}코인`
-      : item.desc;
-    label.innerHTML=`<b>${item.name} — ${item.price}코인</b><br><small>${desc}</small>`;
-    const btn=document.createElement("button");
-    const armed=item.id==="revive" && ownedItems.has("revive");
-    btn.textContent=armed?"장착됨":item.mult?"구매":"사용";
-    btn.disabled = armed || coins < item.price;
-    btn.onclick=()=>useShopItem(item.id);
-    row.append(label,btn); box.appendChild(row);
+    label.innerHTML=`<b>${item.name} — ${item.price}코인</b><br><small>${item.desc} · 보유 ${stock}개</small>`;
+
+    const controls=document.createElement("span");
+    controls.style.display="flex";
+    controls.style.gap="6px";
+
+    const buyBtn=document.createElement("button");
+    buyBtn.textContent="구매";
+    buyBtn.disabled=coins < item.price;
+    buyBtn.onclick=()=>buyShopItem(item.id);
+
+    const useBtn=document.createElement("button");
+    useBtn.textContent="사용";
+    useBtn.disabled=stock <= 0 || (item.id==="revive" && ownedItems.has("revive"));
+    useBtn.onclick=()=>useShopItem(item.id);
+
+    controls.append(buyBtn,useBtn);
+    row.append(label,controls); box.appendChild(row);
   }
 
   if(!nextMult){
@@ -9481,10 +10212,13 @@ function renderShop(){
 function rewardWin(){
   if(winRewarded) return;
   winRewarded = true;
+  totalWins += winMultiplier;
   coins += 20 * coinMultiplier;
   renderShop();
   saveGame();
 }
+
+const BLOCKED_WORDS = new Set(["날뷁","피토헬륨","팁포르닉"]);
 
 function normalizeWords(arr){      
   const out = [];      
@@ -9554,10 +10288,9 @@ function buildDictionary(words){
 
   if(cho === 5){
     // ㄹ → ㅇ
-    // ㅑ ㅕ ㅖ ㅛ ㅠ ㅣ
+    // ㅑ ㅕ ㅖ ㅛ ㅠ ㅣ (ㅓ 제외: 렁은 한방)
     const R_TO_NG = [
       2,   // ㅑ
-      4,   // ㅓ  (한끝 특례: 렁→엉, 럴→얼 / 넝·널은 불가)
       6,   // ㅕ
       7,   // ㅖ
       12,  // ㅛ
@@ -9587,14 +10320,37 @@ function buildDictionary(words){
 
   return null;
 }  
-function allowed(c){      
-  const d = dueum(c);      
-      
-  if(d && d !== c){      
-    return [c,d];      
-  }      
-      
-  return [c];      
+function freeDueumVariants(c){
+  if(!c) return [c];
+
+  const code = c.charCodeAt(0);
+  if(code < 0xAC00 || code > 0xD7A3) return [c];
+
+  const x = code - 0xAC00;
+  const cho = Math.floor(x / 588);
+  const jung = Math.floor((x % 588) / 28);
+  const jong = x % 28;
+
+  if(![2,5,11].includes(cho)) return [c];
+
+  const make = newCho =>
+    String.fromCharCode(0xAC00 + (newCho * 21 + jung) * 28 + jong);
+
+  return [...new Set([c, make(5), make(2), make(11)])];
+}
+
+function allowed(c){
+  if(armedWinItem === "freeDueum"){
+    return freeDueumVariants(c);
+  }
+
+  const d = dueum(c);
+
+  if(d && d !== c){
+    return [c,d];
+  }
+
+  return [c];
 }      
       
 function last(w){      
@@ -9723,35 +10479,36 @@ function aiMove(){
     return;      
   }      
       
-  const cand =      
-    sample(possible,120);      
-      
-  let best =      
-    cand[0];      
-      
-  let bestCount =      
-    Infinity;      
-      
-  for(const w of cand){      
-      
-    const n =      
-      countReplies(      
-        last(w),      
-        w,      
-        bestCount      
-      );      
-      
-    if(n < bestCount){      
-      
-      best = w;      
-      bestCount = n;      
-      
-      if(n === 0){      
-        break;      
-      }      
-    }      
-  }      
-      
+  // 전체 후보에서 한방/생존/유도 수를 먼저 찾고, 상대가 최선으로
+  // 대응한다고 가정해 몇 수 앞까지 본다. 랜덤 120개 샘플링은 사용하지 않는다.
+  let rankedAI = fastAiChoices(need);
+  let best = rankedAI.length ? rankedAI[0].w : possible[0];
+  let bestCount = strategicReplyCount(last(best), new Set([best]), null, Infinity);
+
+  // 한방 방어가 사용된 상태라면 AI가 한방 단어를 실제로 내지 못하게 함.
+  // AI가 원래 고른 best가 한방일 때만 1회 소모하고, 일반 단어로 다시 고른다.
+  if(ownedItems.has("revive") && countReplies(last(best), null, 1) === 0){
+    ownedItems.delete("revive");
+
+    const safeCand = possible.filter(w => countReplies(last(w), null, 1) > 0);
+    if(safeCand.length === 0){
+      setStatus("🛡️ 한방 방어 발동! AI가 낼 수 있는 일반 단어가 없음 — 네 승리 🎉");
+      gameOver = true;
+      rewardWin();
+      renderShop();
+      saveGame();
+      return;
+    }
+
+    const safeSet = new Set(safeCand);
+    // 이미 계산한 rankedAI를 재사용해서 같은 턴에 전략 분석을 두 번 하지 않음.
+    const safeRanked = rankedAI.filter(x=>safeSet.has(x.w));
+    best = safeRanked.length ? safeRanked[0].w : safeCand[0];
+    bestCount = strategicReplyCount(last(best), new Set([best]), null, Infinity);
+    renderShop();
+    setStatus("🛡️ 한방 방어 발동! AI의 한방 단어 사용 차단");
+  }
+
   used.add(best);      
       
   current = best;      
@@ -9776,13 +10533,6 @@ function aiMove(){
     );      
       
     
-    if(ownedItems.has("revive")){
-      ownedItems.delete("revive");
-      gameOver=false;
-      setStatus("🛡️ 한방 방어 발동! 이번 패배를 막음");
-      renderShop(); saveGame();
-      return;
-    }
     gameOver = true;      
       
   }else{      
@@ -9799,7 +10549,7 @@ function submitWord(){
   if(gameOver){      
       
     return setStatus(      
-      "게임이 끝났음. 초기화 눌러.",      
+      "게임이 끝났음. 다음 판 눌러.",      
       true      
     );      
   }      
@@ -9853,33 +10603,22 @@ function submitWord(){
     );      
   }      
       
-  if(userTurn === 0){      
-      
-    const n =      
-      countReplies(      
-        last(w),      
-        w,      
-        2      
-      );      
-      
-    if(n === 0){      
-      
-      return setStatus(      
-        "첫턴 한방 금지 💀",      
-        true      
-      );      
-    }      
-      
-    if(n < 2){      
-      
-      return setStatus(      
-        "첫턴 매너 위반: 상대가 낼 수 있는 단어가 너무 적음",      
-        true      
-      );      
-    }      
+  if(userTurn === 0){
+    const attackType = firstTurnAttackType(w, 3);
+    if(attackType === "one"){
+      return setStatus("첫턴 한방 금지 💀", true);
+    }
+    if(attackType === "induce"){
+      return setStatus("첫턴 유도단어 금지 💀", true);
+    }
   }      
       
-  used.add(w);      
+  used.add(w);
+  if(armedWinItem === "freeDueum"){
+    winItemStock.freeDueum = Math.max(0, (winItemStock.freeDueum || 0) - 1);
+    armedWinItem = null;
+    renderShop();
+  }      
       
   current = w;      
       
