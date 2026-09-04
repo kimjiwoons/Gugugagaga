@@ -42,6 +42,12 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
 }
 
 </style>      
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#111827">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="./icon-192.png">
 </head>      
 <body>      
 <div class="wrap">      
@@ -11019,5 +11025,11 @@ document.addEventListener("visibilitychange", ()=>{
 });
 window.addEventListener("pagehide", saveGame);
 
-</script>      </body>      
+</script>      
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>      
 </html>
