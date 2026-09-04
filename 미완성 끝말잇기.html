@@ -9340,7 +9340,9 @@ const EMBEDDED = `가게
 춘삼삭
 춘수모운
 몽둥이맛
-몽둥이춤`.split(/\s+/).filter(Boolean);      
+몽둥이춤
+꾼돈
+꾼떡`.split(/\s+/).filter(Boolean);      
       
 const BLOCK = new Set(["날뷁"]);      
       
@@ -9724,12 +9726,27 @@ function loadGame(){
     coinMultiplier = Math.max(1, Number(d.coinMultiplier) || 1);
     totalWins = Math.max(0, Number(d.totalWins) || 0);
     spentWins = Math.max(0, Number(d.spentWins) || 0);
+    if(spentWins>0){
+      totalWins=Math.max(0,totalWins-spentWins);
+      spentWins=0;
+    }
     winMultiplier = Math.max(1, Number(d.winMultiplier) || 1);
     winItemStock = (d.winItemStock && typeof d.winItemStock === "object")
       ? { freeDueum: Math.max(0, Number(d.winItemStock.freeDueum) || 0) }
       : { freeDueum: 0 };
     armedWinItem = d.armedWinItem === "freeDueum" ? "freeDueum" : null;
-    return !!current || historyData.length > 0 || coins > 0 || ownedItems.size > 0 || totalWins > 0 || winItemStock.freeDueum > 0;
+    return !!current
+      || historyData.length > 0
+      || coins > 0
+      || ownedItems.size > 0
+      || totalWins > 0
+      || (itemStock.cheat||0) > 0
+      || (itemStock.candidates||0) > 0
+      || (itemStock.revive||0) > 0
+      || (winItemStock.freeDueum||0) > 0
+      || coinMultiplier > 1
+      || winMultiplier > 1
+      || !!armedWinItem;
   }catch(e){ return false; }
 }
 
@@ -9882,18 +9899,121 @@ function tacticalEndInfo(endLetter){
 }
 
 
+const KUN_PRIORITY = ["꾼둑","꾼둑꾼둑","꾼밤","꾼돈","꾼내","꾼떡","꾼들","꾼들꾼들","꾼지람","꾼소리"];
+
 function fastAiChoices(letter){
-  const out=[];
+  const all=[];
   for(const c of allowed(letter)){
     for(const w of (byFirst.get(c)||[])){
-      if(used.has(w)) continue;
-      const n=strategicReplyCount(last(w), new Set([w]), null, 30);
-      out.push({w,n,score:n===0?1000000:30-n});
-      if(out.length>=40) break;
+      if(!used.has(w)) all.push(w);
     }
-    if(out.length>=40) break;
   }
-  return out.sort((a,b)=>b.score-a.score);
+  if(!all.length) return [];
+
+  // 1) 한방은 전 후보를 빠르게 훑어서 무조건 최우선.
+  const kills=[];
+  for(const w of all){
+    if(countReplies(last(w), w, 1)===0){
+      kills.push({w,n:0,score:1000000});
+    }
+  }
+  if(kills.length) return kills;
+
+  // 2) 꾼은 지정된 순서대로 반드시 사용. 이미 쓴 단어는 다음 것으로 넘어감.
+  if(letter==="꾼"){
+    const have=new Set(all);
+    for(const w of KUN_PRIORITY){
+      if(have.has(w)) return [{w,n:countReplies(last(w),w,30),score:900000}];
+    }
+  }
+
+  // 3) 모든 단어를 깊게 보지 않고, '끝글자'별 대표만 뽑아 분석.
+  // 같은 끝글자는 다음 판세가 거의 같아서 이 방식이 훨씬 빠름.
+  const reps=new Map();
+  for(const w of all){
+    const e=last(w);
+    if(!reps.has(e)){
+      reps.set(e,{w,e,n:countReplies(e,w,40),loop:w[0]===e});
+    }
+  }
+
+  const quick=[...reps.values()];
+  quick.sort((a,b)=>a.n-b.n || a.loop-b.loop || b.w.length-a.w.length);
+
+  // 압박수 16개 + 생존폭 큰 수 8개를 섞어서 한쪽 전략에만 치우치지 않음.
+  const short=[];
+  const seen=new Set();
+  const add=x=>{ if(x && !seen.has(x.e)){ seen.add(x.e); short.push(x); } };
+  quick.slice(0,16).forEach(add);
+  quick.slice(-8).forEach(add);
+
+  const ranked=[];
+  for(const x of short){
+    const info=tacticalEndInfo(x.e);
+    // kind: 2 유도승, 1 안전, 0 상대 즉사 가능.
+    let score = info.kind===2 ? 700000 : info.kind===1 ? 400000 : -400000;
+    score -= info.danger*50000;
+    score += Math.max(0,50-Math.min(info.replies,50))*20;
+    if(x.loop) score-=30;
+    ranked.push({w:x.w,n:info.replies,score});
+  }
+
+  ranked.sort((a,b)=>b.score-a.score || a.n-b.n || b.w.length-a.w.length);
+  return ranked.length ? ranked : [{w:all[0],n:0,score:0}];
+}
+
+
+function fastRecommendationChoices(limit=3){
+  if(!current) return [];
+  const need=last(current);
+  const cand=[];
+
+  // 최대 72개 후보만 고르게 뽑음. 55만 사전 전체 탐색 금지.
+  let total=0;
+  const buckets=[];
+  for(const c of allowed(need)){
+    const arr=(byFirst.get(c)||[]).filter(w=>!used.has(w));
+    if(arr.length){ buckets.push(arr); total+=arr.length; }
+  }
+  if(!total) return [];
+
+  const cap=72;
+  const step=Math.max(1,Math.floor(total/cap));
+  let idx=0;
+  outer:
+  for(const arr of buckets){
+    for(const w of arr){
+      if((idx++ % step)!==0) continue;
+
+      // 답변 수는 20개까지만 세서 즉시 종료.
+      const n=strategicReplyCount(last(w),new Set([w]),null,20);
+
+      // 즉시 한방은 최우선.
+      if(n===0) return [{w,n,score:1000000}];
+
+      // 상대가 바로 한방을 만들 수 있는지 최대 6답만 초고속 확인.
+      let danger=0,checked=0;
+      for(const c2 of allowed(last(w))){
+        for(const r of (byFirst.get(c2)||[])){
+          if(r===w || used.has(r)) continue;
+          checked++;
+          if(strategicReplyCount(last(r),new Set([w,r]),null,1)===0){
+            danger=1; break;
+          }
+          if(checked>=6) break;
+        }
+        if(danger || checked>=6) break;
+      }
+
+      // 죽는 추천은 밀고, 너무 단순한 자기고리도 약간 감점.
+      let score=(danger?-10000:0) - n - (w[0]===last(w)?4:0);
+      cand.push({w,n,score});
+      if(cand.length>=cap) break outer;
+    }
+  }
+
+  cand.sort((a,b)=>b.score-a.score || a.n-b.n || b.w.length-a.w.length);
+  return cand.slice(0,limit);
 }
 
 function analyzeStrategicChoices(letter, firstTurnRule=false){
@@ -9910,7 +10030,7 @@ function analyzeStrategicChoices(letter, firstTurnRule=false){
   const endCache=new Map();
   const tactical=[];
   for(const w of moves){
-    if(firstTurnRule && firstTurnAttackType(w,3)) continue;
+    if(firstTurnRule && (FIRST_TURN_BLOCK_LAST.has(last(w)) || firstTurnAttackType(w,3))) continue;
     const e=last(w);
     let info=endCache.get(e);
     if(!info){ info=tacticalEndInfo(e); endCache.set(e,info); }
@@ -9951,6 +10071,8 @@ function analyzeStrategicChoices(letter, firstTurnRule=false){
   }
   return out.sort((a,b)=>b.score-a.score || a.n-b.n || b.w.length-a.w.length);
 }
+
+const FIRST_TURN_BLOCK_LAST = new Set(["딘","값","즙","꾼","맡","낏"]);
 
 function firstTurnAttackType(word, maxDepth=5){
   // 첫 턴 공격단어 판정: 즉시 한방뿐 아니라, 상대가 어떤 수를 둬도
@@ -10011,9 +10133,7 @@ function rankUserChoices(){
   if(gameOver || !current) return [];
   return analyzeStrategicChoices(last(current), userTurn===0);
 }
-function availableWins(){
-  return Math.max(0, totalWins - spentWins);
-}
+function availableWins(){ return Math.max(0,totalWins); }
 
 function buyWinItem(id){
   const item = WIN_SHOP_ITEMS.find(x => x.id === id);
@@ -10026,14 +10146,16 @@ function buyWinItem(id){
       return setStatus("이전 승수 배수를 먼저 구매해야 함", true);
     }
 
-    spentWins += item.priceWins;
+    totalWins = Math.max(0, totalWins - item.priceWins);
+    spentWins = 0;
     winMultiplier = item.winMult;
     renderShop();
     saveGame();
     return setStatus(`🏆 승수 ${item.winMult}× 적용! 이제 승리 시 +${item.winMult}승`);
   }
 
-  spentWins += item.priceWins;
+  totalWins = Math.max(0, totalWins - item.priceWins);
+    spentWins = 0;
   winItemStock[id] = (winItemStock[id] || 0) + 1;
   renderShop();
   saveGame();
@@ -10064,7 +10186,7 @@ function useShopItem(id){
   if(!item || item.mult || (itemStock[id]||0) <= 0) return;
 
   if(id==="cheat"){
-    const a=rankUserChoices();
+    const a=fastRecommendationChoices(1);
     if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
     itemStock.cheat--;
     renderShop(); saveGame();
@@ -10072,7 +10194,7 @@ function useShopItem(id){
   }
 
   if(id==="candidates"){
-    const a=rankUserChoices().slice(0,3);
+    const a=fastRecommendationChoices(3);
     if(!a.length) return setStatus("추천 가능한 단어가 없음",true);
     itemStock.candidates--;
     renderShop(); saveGame();
@@ -10250,7 +10372,8 @@ function buildDictionary(words){
     byFirst.get(c).push(w);      
   }      
       
-  $("count").textContent = dict.length.toLocaleString();      
+  $("count").textContent = dict.length.toLocaleString();
+  rebuildTurnAiCache();      
 }      
          
     function dueum(c){
@@ -10457,6 +10580,60 @@ function sample(arr,n){
   return out;      
 }      
       
+
+const TURN_AI_CACHE = new Map();
+
+function rebuildTurnAiCache(){
+  TURN_AI_CACHE.clear();
+  for(const [c,arr] of byFirst.entries()){
+    // 한방 후보와 일반 후보를 사전 로드 때 미리 분리
+    const kill=[], normal=[];
+    for(const w of arr){
+      let hasReply=false;
+      for(const nx of allowed(last(w))){
+        const a=byFirst.get(nx);
+        if(a && a.length){ hasReply=true; break; }
+      }
+      (hasReply?normal:kill).push(w);
+    }
+    TURN_AI_CACHE.set(c,{kill,normal});
+  }
+}
+
+function cachedAiChoices(need){
+  const starts=allowed(need);
+  // 한방은 즉시
+  for(const c of starts){
+    const z=TURN_AI_CACHE.get(c);
+    if(!z) continue;
+    for(const w of z.kill) if(!used.has(w)) return [{w,score:999999,n:0}];
+  }
+  // 꾼 지정순서
+  if(need==="꾼"){
+    const order=["꾼둑","꾼둑꾼둑","꾼밤","꾼돈","꾼내","꾼떡","꾼들","꾼들꾼들","꾼지람","꾼소리"];
+    for(const w of order) if(dictSet.has(w)&&!used.has(w)) return [{w,score:900000,n:1}];
+  }
+  // 매 턴 최대 24개만 점수 계산
+  const out=[];
+  for(const c of starts){
+    const z=TURN_AI_CACHE.get(c);
+    if(!z) continue;
+    for(const w of z.normal){
+      if(used.has(w)) continue;
+      let n=0;
+      for(const nx of allowed(last(w))){
+        n += (byFirst.get(nx)||[]).length;
+        if(n>=40){n=40;break;}
+      }
+      out.push({w,n,score:40-n-(w[0]===last(w)?5:0)});
+      if(out.length>=24) break;
+    }
+    if(out.length>=24) break;
+  }
+  out.sort((a,b)=>b.score-a.score);
+  return out;
+}
+
 function aiMove(){      
   if(gameOver){      
     return;      
@@ -10481,9 +10658,9 @@ function aiMove(){
       
   // 전체 후보에서 한방/생존/유도 수를 먼저 찾고, 상대가 최선으로
   // 대응한다고 가정해 몇 수 앞까지 본다. 랜덤 120개 샘플링은 사용하지 않는다.
-  let rankedAI = fastAiChoices(need);
+  let rankedAI = cachedAiChoices(need);
   let best = rankedAI.length ? rankedAI[0].w : possible[0];
-  let bestCount = strategicReplyCount(last(best), new Set([best]), null, Infinity);
+  let bestCount = strategicReplyCount(last(best), new Set([best]), null, 60);
 
   // 한방 방어가 사용된 상태라면 AI가 한방 단어를 실제로 내지 못하게 함.
   // AI가 원래 고른 best가 한방일 때만 1회 소모하고, 일반 단어로 다시 고른다.
@@ -10504,7 +10681,7 @@ function aiMove(){
     // 이미 계산한 rankedAI를 재사용해서 같은 턴에 전략 분석을 두 번 하지 않음.
     const safeRanked = rankedAI.filter(x=>safeSet.has(x.w));
     best = safeRanked.length ? safeRanked[0].w : safeCand[0];
-    bestCount = strategicReplyCount(last(best), new Set([best]), null, Infinity);
+    bestCount = strategicReplyCount(last(best), new Set([best]), null, 60);
     renderShop();
     setStatus("🛡️ 한방 방어 발동! AI의 한방 단어 사용 차단");
   }
@@ -10604,6 +10781,9 @@ function submitWord(){
   }      
       
   if(userTurn === 0){
+    if(FIRST_TURN_BLOCK_LAST.has(last(w))){
+      return setStatus(`첫턴 '${last(w)}' 끝 단어 금지 💀`, true);
+    }
     const attackType = firstTurnAttackType(w, 3);
     if(attackType === "one"){
       return setStatus("첫턴 한방 금지 💀", true);
@@ -10635,9 +10815,9 @@ function submitWord(){
     `네가 "${w}" 냄`      
   );      
       
-  setTimeout(      
-    aiMove,      
-    220      
+  setTimeout(
+    aiMove,
+    30
   );      
 }      
         
@@ -10834,6 +11014,10 @@ async function initGame(){
 
 initGame();
 window.addEventListener("beforeunload", saveGame);
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="hidden") saveGame();
+});
+window.addEventListener("pagehide", saveGame);
 
 </script>      </body>      
 </html>
