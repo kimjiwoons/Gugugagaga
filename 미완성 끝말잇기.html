@@ -42,18 +42,12 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
 }
 
 </style>      
-
-<link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#111827">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="./icon-192.png">
-</head>      
+<link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="./icon-192.png"></head>      
 <body>      
 <div class="wrap">      
   <div class="card">      
     <h1>끝말잇기 AI</h1>      
-    <div class="muted">외부 fetch 없음 · TXT 대형사전 불러오기 가능 · 두음법칙 적용</div>      
+    <div class="muted">외부 fetch 없음 · TXT 대형사전 불러오기 가능 · 두음법칙 적용</div><button id="installAppBtn" type="button" style="margin-top:10px">📲 앱 설치</button>      
   </div>        <div class="card">      
     <div class="stats">      
       <div><b id="count">0</b><br><span class="muted">사전 단어</span></div>      
@@ -11025,11 +11019,11 @@ document.addEventListener("visibilitychange", ()=>{
 });
 window.addEventListener("pagehide", saveGame);
 
-</script>      
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(()=>{}));
-}
-</script>
-</body>      
+</script>      <script>
+let installPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;});
+document.getElementById("installAppBtn")?.addEventListener("click",async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;}else alert("Chrome이 아직 설치 준비 중이야. 잠깐 뒤 다시 눌러줘.");});
+window.addEventListener("appinstalled",()=>{const b=document.getElementById("installAppBtn");if(b){b.textContent="✓ 설치됨";b.disabled=true;}});
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+</script></body>      
 </html>
