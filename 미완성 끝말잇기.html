@@ -58,21 +58,6 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="./icon-192.png">
-
-<script>
-/* 브라우저/인앱브라우저 -> Chrome/PWA 저장 이어받기 */
-(function(){
-  try{
-    const m = location.hash.match(/(?:^#|&)wc_save=([^&]+)/);
-    if(!m) return;
-    const json = decodeURIComponent(m[1]);
-    JSON.parse(json); // 깨진 데이터 방지
-    localStorage.setItem("gugugagaga_save_v1", json);
-    history.replaceState(null, "", location.pathname + location.search);
-  }catch(e){}
-})();
-</script>
-
 </head>      
 <body>      
 <div class="wrap">      
@@ -11111,15 +11096,10 @@ document.getElementById("installAppBtn")?.addEventListener("click", async () => 
   // 카톡/인앱 브라우저 등에서는 설치 프롬프트를 못 띄우므로
   // 같은 버튼으로 Chrome의 현재 페이지를 열어준다.
   if (isAndroid && !isChrome) {
-    let transferUrl = location.href.split("#")[0];
-    try{
-      const saved = localStorage.getItem("gugugagaga_save_v1");
-      if(saved) transferUrl += "#wc_save=" + encodeURIComponent(saved);
-    }catch(e){}
-    const clean = transferUrl.replace(/^https?:\/\//, "");
+    const clean = location.href.replace(/^https?:\/\//, "");
     location.href = "intent://" + clean +
       "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
-      encodeURIComponent(transferUrl) + ";end";
+      encodeURIComponent(location.href) + ";end";
     return;
   }
 
