@@ -41,13 +41,30 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
   flex:0 0 auto;
 }
 
+
+#forfeitBtn{
+  transition:.15s;
+}
+#forfeitBtn:disabled{
+  background:#374151 !important;
+  color:#6b7280 !important;
+  opacity:.72;
+  cursor:not-allowed;
+  box-shadow:none !important;
+}
 </style>      
-<link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="./icon-192.png"></head>      
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#111827">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="./icon-192.png">
+</head>      
 <body>      
 <div class="wrap">      
   <div class="card">      
     <h1>끝말잇기 AI</h1>      
-    <div class="muted">외부 fetch 없음 · TXT 대형사전 불러오기 가능 · 두음법칙 적용</div><button id="installAppBtn" type="button" style="margin-top:10px">📲 앱 설치</button>      
+    <div class="muted">외부 fetch 없음 · TXT 대형사전 불러오기 가능 · 두음법칙 적용</div>
+      <button id="installAppBtn" type="button" style="margin-top:10px">📲 앱 설치</button>      
   </div>        <div class="card">      
     <div class="stats">      
       <div><b id="count">0</b><br><span class="muted">사전 단어</span></div>      
@@ -66,7 +83,10 @@ button.secondary,.filebtn.secondary{background:#374151} button.danger{background
       <label class="filebtn">대형 사전 TXT 불러오기      
         <input id="dictFile" type="file" accept=".txt,text/plain,.json,application/json">      
       </label>      
-      <button class="secondary" id="resetBtn">다음 판</button>      
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="secondary" id="resetBtn">다음 판</button>
+        <button id="forfeitBtn" type="button" class="danger">🏳️ 기권</button>
+      </div>      
       <button class="danger" id="restoreBtn">내장 사전으로 복구</button>      
     </div>      
     <div class="muted" style="margin-top:8px">      
@@ -9676,7 +9696,14 @@ const $ = id => document.getElementById(id);
 const statusEl = $("status");      
 const historyEl = $("history");
 
+function updateForfeitButton(){
+  const b = document.getElementById("forfeitBtn");
+  if(!b) return;
+  b.disabled = !!gameOver;
+}
+
 function saveGame(){
+  updateForfeitButton();
   const data = {
     coins,
     ownedItems:[...ownedItems],
@@ -10861,6 +10888,13 @@ function submitWord(){
   renderShop();
   saveGame();
 }    
+$("forfeitBtn").onclick = () => {
+  if(gameOver) return;
+  gameOver = true;
+  setStatus("기권함 — 이번 판 종료 🏳️", true);
+  saveGame();
+};
+
 $("submitBtn").onclick =      
   submitWord;      
       
@@ -11019,11 +11053,80 @@ document.addEventListener("visibilitychange", ()=>{
 });
 window.addEventListener("pagehide", saveGame);
 
-</script>      <script>
-let installPrompt=null;
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;});
-document.getElementById("installAppBtn")?.addEventListener("click",async()=>{if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;}else alert("Chrome이 아직 설치 준비 중이야. 잠깐 뒤 다시 눌러줘.");});
-window.addEventListener("appinstalled",()=>{const b=document.getElementById("installAppBtn");if(b){b.textContent="✓ 설치됨";b.disabled=true;}});
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
-</script></body>      
+</script>      
+<script>
+let installPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+});
+
+window.addEventListener("appinstalled", () => {
+  installPrompt = null;
+  const b = document.getElementById("installAppBtn");
+  if (b) {
+    b.textContent = "✓ 설치됨";
+    b.disabled = true;
+  }
+});
+
+document.getElementById("installAppBtn")?.addEventListener("click", async () => {
+  const b = document.getElementById("installAppBtn");
+
+  if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+    b.textContent = "✓ 설치됨";
+    b.disabled = true;
+    return;
+  }
+
+  if (installPrompt) {
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    return;
+  }
+
+  const ua = navigator.userAgent || "";
+  const isAndroid = /Android/i.test(ua);
+  const isChrome = /Chrome\/\d+/i.test(ua) && !/wv\)/i.test(ua);
+
+  // 카톡/인앱 브라우저 등에서는 설치 프롬프트를 못 띄우므로
+  // 같은 버튼으로 Chrome의 현재 페이지를 열어준다.
+  if (isAndroid && !isChrome) {
+    const clean = location.href.replace(/^https?:\/\//, "");
+    location.href = "intent://" + clean +
+      "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
+      encodeURIComponent(location.href) + ";end";
+    return;
+  }
+
+  // Chrome에서 이벤트가 약간 늦게 오는 경우 잠깐 기다렸다가 바로 설치창 호출
+  b.textContent = "설치 준비 중…";
+  const started = Date.now();
+  const timer = setInterval(async () => {
+    if (installPrompt) {
+      clearInterval(timer);
+      b.textContent = "📲 앱 설치";
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      installPrompt = null;
+      return;
+    }
+    if (Date.now() - started > 3000) {
+      clearInterval(timer);
+      b.textContent = "📲 앱 설치";
+      alert("Chrome에서 이 사이트가 아직 설치 가능한 앱으로 인식되지 않았어.");
+    }
+  }, 100);
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+</script>
+
+</body>      
 </html>
